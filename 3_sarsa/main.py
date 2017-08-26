@@ -1,5 +1,5 @@
 from maze_env import Maze
-from rl_brain import QLearningTabel
+from rl_brain import SarsaTable
 
 def update():
     for episode in range(100):
@@ -33,7 +33,7 @@ def update():
 
 if __name__ == "__main__":
     env = Maze()
-    RL = QLearningTabel(actions=list(range(env.n_actions)))
+    RL = SarsaTable(actions=list(range(env.n_actions)))
 
     env.after(100, update)
     env.mainloop()
