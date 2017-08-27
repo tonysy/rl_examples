@@ -54,7 +54,6 @@ class DeepQNetwork:
         t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_net')
         e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='eval_net')
         self.target_replace_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
-
         self.sess = tf.Session()
 
         if output_graph:
@@ -65,6 +64,7 @@ class DeepQNetwork:
         self.sess.run(tf.global_variables_initializer())
         self.cost_his = []
 
+
     def _build_net(self):
         # ------------------ all inputs ------------------------
         self.s = tf.placeholder(tf.float32, [None, self.n_features], name='s')  # input State
@@ -73,7 +73,7 @@ class DeepQNetwork:
         self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
 
         w_initializer, b_initializer = tf.random_normal_initializer(0., 0.3), tf.constant_initializer(0.1)
-
+        tf.va
         # ------------------ build evaluate_net ------------------
         with tf.variable_scope('eval_net'):
             e1 = tf.layers.dense(self.s, 20, tf.nn.relu, kernel_initializer=w_initializer,
