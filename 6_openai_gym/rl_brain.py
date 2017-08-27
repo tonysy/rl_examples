@@ -73,17 +73,17 @@ class DeepQNetwork:
         self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
 
         w_initializer, b_initializer = tf.random_normal_initializer(0., 0.3), tf.constant_initializer(0.1)
-        tf.va
+
         # ------------------ build evaluate_net ------------------
         with tf.variable_scope('eval_net'):
-            e1 = tf.layers.dense(self.s, 20, tf.nn.relu, kernel_initializer=w_initializer,
+            e1 = tf.layers.dense(self.s, 10, tf.nn.relu, kernel_initializer=w_initializer,
                                  bias_initializer=b_initializer)
             self.q_eval = tf.layers.dense(e1, self.n_actions, kernel_initializer=w_initializer,
                                           bias_initializer=b_initializer)
 
         # ------------------ build target_net ------------------
         with tf.variable_scope('target_net'):
-            e1 = tf.layers.dense(self.s, 20, tf.nn.relu, kernel_initializer=w_initializer,
+            e1 = tf.layers.dense(self.s, 10, tf.nn.relu, kernel_initializer=w_initializer,
                                  bias_initializer=b_initializer)
             self.q_next = tf.layers.dense(e1, self.n_actions, kernel_initializer=w_initializer,
                                           bias_initializer=b_initializer)
@@ -102,10 +102,13 @@ class DeepQNetwork:
     def store_transition(self, s, a, r, s_):
         if not hasattr(self, 'memory_counter'):
             self.memory_counter = 0
+
         transition = np.hstack((s, [a, r], s_))
+
         # replace the old memory with new memory
         index = self.memory_counter % self.memory_size
         self.memory[index, :] = transition
+
         self.memory_counter += 1
 
     def choose_action(self, observation):
@@ -154,6 +157,3 @@ class DeepQNetwork:
         plt.ylabel('Cost')
         plt.xlabel('training steps')
         plt.show()
-
-if __name__ == '__main__':
-    DQN = DeepQNetwork(3,4, output_graph=True)
