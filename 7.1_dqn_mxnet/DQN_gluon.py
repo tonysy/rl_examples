@@ -17,7 +17,7 @@ LR = 0.01
 EPSILON = 0.9
 DISCOUNTOR_FACTOR = 0.9
 TARGET_REPLACE_ITER = 100
-MEMORY_CAPACITY = 500
+MEMORY_CAPACITY = 2000
 
 
 # In[4]:
@@ -38,8 +38,8 @@ ctx = mx.cpu()
 def Net():
     net = gluon.nn.Sequential()
     with net.name_scope():
-        net.add(gluon.nn.Dense(10, in_units=4,activation="relu"))
-        net.add(gluon.nn.Dense(N_ACTIONS, in_units=10))
+        net.add(gluon.nn.Dense(10,activation="relu"))
+        net.add(gluon.nn.Dense(N_ACTIONS))
     net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
     return net
 
@@ -58,12 +58,10 @@ class DQN(object):
         
     def choose_action(self, observation):
         observation = nd.array(observation).reshape((1,4))
-        print(observation)
+
         if np.random.uniform() < EPSILON:
             action_value = self.eval_net(observation)
-            print(observation)
-            print(action_value)
-            print(nd.argmax(action_value,axis=1))
+           
             action = nd.argmax(action_value, axis=1)[0].astype(int).asnumpy()[0]
         else:
             action = np.random.randint(0, N_ACTIONS)
@@ -71,8 +69,14 @@ class DQN(object):
         return action
     
     def store_transition(self, s, a, r, s_):
+        # print(s,a,r,s_)
+        # s = nd.array(s).reshape((1,))
+        # a = nd.array([a])#.reshape((1,))
+        # r = nd.array([r])#.reshape((1,))
+        # s_ = nd.array(s_).reshape((1,))
+        # print(s,a,r,s_)
         transition = np.hstack((s, [a, r], s_))
-        
+    
         index = self.memory_counter % MEMORY_CAPACITY
         self.memory[index, :] = transition
         self.memory_counter += 1
@@ -80,32 +84,34 @@ class DQN(object):
     def learn(self):
         if self.learn_step_counter % TARGET_REPLACE_ITER == 0:
             self.target_net.initialize(self.eval_net.collect_params())
+            # pass
         
         self.learn_step_counter += 1
         
         sample_index = np.random.choice(MEMORY_CAPACITY, BATCH_SIZE)
         b_memory = self.memory[sample_index, :]
         b_s = nd.array(b_memory[:, :N_STATES])
-        b_a = nd.array(b_memory[:, N_STATES:N_STATES+1].astype(int))
+        b_a = nd.array(b_memory[:, N_STATES:N_STATES+1])
         b_r = nd.array(b_memory[:, N_STATES+1])
         b_s_ = nd.array(b_memory[:, -N_STATES:])
         
-        
         q_next = self.target_net(b_s_)
-        q_target = b_r + DISCOUNTOR_FACTOR * nd.max(q_next)
-        
+        q_target = b_r + DISCOUNTOR_FACTOR * nd.max_axis(q_next,axis=1)
         eval_trainer = gluon.Trainer(self.eval_net.collect_params(), 'sgd', {'learning_rate': 0.01})
-        train_data = mx.gluon.data.DataLoader(mx.gluon.data.ArrayDataset(b_s, q_target), batch_size=1, shuffle=True)
+        
+        train_data = mx.gluon.data.DataLoader(mx.gluon.data.ArrayDataset(b_s, q_target), batch_size=32, shuffle=True)
         for data, label in train_data:
             data = data.as_in_context(ctx)
             label = label.as_in_context(ctx)
             
             with autograd.record():
                 q_eval = self.eval_net(data)
+                q_eval = nd.pick(q_eval, b_a, 1)
+
                 loss = self.loss(q_eval, label)
             
             loss.backward()
-            eval_trainer.step(1)
+            eval_trainer.step(32)
 
 
 # In[25]:
