@@ -21,7 +21,7 @@ LR = 0.01                   # learning rate
 EPSILON = 0.9               # greedy policy
 GAMMA = 0.9                 # reward discount
 TARGET_REPLACE_ITER = 100   # target update frequency
-MEMORY_CAPACITY = 2000
+MEMORY_CAPACITY = 200
 env = gym.make('CartPole-v0')
 env = env.unwrapped
 N_ACTIONS = env.action_space.n
@@ -73,6 +73,7 @@ class DQN(object):
     def learn(self):
         # target parameter update
         if self.learn_step_counter % TARGET_REPLACE_ITER == 0:
+            print self.eval_net.state_dict()
             self.target_net.load_state_dict(self.eval_net.state_dict())
         self.learn_step_counter += 1
 

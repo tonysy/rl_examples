@@ -7,6 +7,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np 
 import gym
+import pdb
 
 # Hyper Params
 BATCH_SIZE = 32
@@ -80,13 +81,16 @@ class DQN(object):
         b_a = Variable(torch.LongTensor(b_memory[:, N_STATES:N_STATES+1].astype(int)))
         b_r = Variable(torch.FloatTensor(b_memory[:, N_STATES+1]))
         b_s_ = Variable(torch.FloatTensor(b_memory[:, -N_STATES:]))
-      
+
         q_eval = self.eval_net(b_s).gather(1, b_a)
+
+        # pdb.set_trace()
         q_next = self.target_net(b_s_).detach() # detach from graph, don't backpropagate
+    
         q_target = b_r + GAMMA * q_next.max(1)[0]
         
         loss = self.loss_func(q_eval, q_target)
-
+        print loss
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

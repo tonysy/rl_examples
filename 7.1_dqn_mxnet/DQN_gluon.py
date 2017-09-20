@@ -1,16 +1,10 @@
 
-# coding: utf-8
-
-# In[1]:
-
 import mxnet as mx
 from mxnet import nd, autograd
 from mxnet import gluon
 import numpy as np
 import gym
-
-
-# In[2]:
+import pdb
 
 BATCH_SIZE = 32
 LR = 0.01
@@ -19,8 +13,6 @@ DISCOUNTOR_FACTOR = 0.9
 TARGET_REPLACE_ITER = 100
 MEMORY_CAPACITY = 2000
 
-
-# In[4]:
 
 # env
 
@@ -31,20 +23,14 @@ N_ACTIONS = env.action_space.n
 N_STATES = env.observation_space.shape[0]
 ctx = mx.cpu()
 
-
-# In[17]:
-
 # Net
 def Net():
     net = gluon.nn.Sequential()
     with net.name_scope():
-        net.add(gluon.nn.Dense(10,activation="relu"))
-        net.add(gluon.nn.Dense(N_ACTIONS))
+        net.add(gluon.nn.Dense(10,in_units=N_STATES,activation="relu"))
+        net.add(gluon.nn.Dense(N_ACTIONS, in_units=10))
     net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
     return net
-
-
-# In[24]:
 
 class DQN(object):
     def __init__(self):
@@ -55,6 +41,7 @@ class DQN(object):
         self.memory = np.zeros((MEMORY_CAPACITY, N_STATES * 2 + 2))
         self.optimizer = 'sgd'
         self.loss = gluon.loss.L2Loss()
+        self.total_loss = 0
         
     def choose_action(self, observation):
         observation = nd.array(observation).reshape((1,4))
@@ -82,10 +69,16 @@ class DQN(object):
         self.memory_counter += 1
     
     def learn(self):
-        if self.learn_step_counter % TARGET_REPLACE_ITER == 0:
-            self.target_net.initialize(self.eval_net.collect_params())
-            # pass
+        #print self.target_net.collect_params()
         
+        if self.learn_step_counter % TARGET_REPLACE_ITER == 0:
+            for i in range(len(self.target_net)):
+                target_param_keys = self.target_net[i].collect_params().keys()
+                eval_param_keys = self.eval_net[i].collect_params().keys()
+                #pdb.set_trace()
+                for j in range(len(target_param_keys)):
+                    self.target_net[i].collect_params()[target_param_keys[j]].set_data(self.eval_net[i].collect_params()[eval_param_keys[j]].data(ctx))
+
         self.learn_step_counter += 1
         
         sample_index = np.random.choice(MEMORY_CAPACITY, BATCH_SIZE)
@@ -99,29 +92,26 @@ class DQN(object):
         q_target = b_r + DISCOUNTOR_FACTOR * nd.max_axis(q_next,axis=1)
         eval_trainer = gluon.Trainer(self.eval_net.collect_params(), 'sgd', {'learning_rate': 0.01})
         
-        train_data = mx.gluon.data.DataLoader(mx.gluon.data.ArrayDataset(b_s, q_target), batch_size=32, shuffle=True)
-        for data, label in train_data:
-            data = data.as_in_context(ctx)
-            label = label.as_in_context(ctx)
-            
-            with autograd.record():
-                q_eval = self.eval_net(data)
-                q_eval = nd.pick(q_eval, b_a, 1)
+        # train_data = mx.gluon.data.DataLoader(mx.gluon.data.ArrayDataset(b_s, q_target), batch_size=32, shuffle=True)
+        # for data, label in train_data:
+        #     print data
+        data = b_s.as_in_context(ctx)
+        label = q_target.as_in_context(ctx)
+        self.total_loss = 0
+        with autograd.record():
+            q_eval = self.eval_net(data)
+            q_eval = nd.pick(q_eval, b_a, 1)
 
-                loss = self.loss(q_eval, label)
-            
-            loss.backward()
-            eval_trainer.step(32)
+            loss = self.loss(nd.transpose(q_eval), nd.transpose(label))
+        loss.backward()
+        eval_trainer.step(32)
+        self.total_loss = nd.sum(loss).asscalar()
+        # print self.total_loss
 
-
-# In[25]:
 
 dqn = DQN()
 
-
-# In[26]:
-
-for i_episode in range(400):
+for i_episode in range(4000):
     s = env.reset()
     ep_r = 0
     while True:
@@ -148,9 +138,5 @@ for i_episode in range(400):
             break
 
         s = s_
-
-
-# In[ ]:
-
 
 
